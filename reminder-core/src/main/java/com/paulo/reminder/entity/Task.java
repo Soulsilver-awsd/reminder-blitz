@@ -11,7 +11,7 @@ public class Task extends PanacheEntity {
     public String title;
     public String description;
     @Column(unique = true)
-    public String externalUid;
+    public String uId;
     public LocalDateTime deadline;
     public boolean isDone;
     public String sourceName;
