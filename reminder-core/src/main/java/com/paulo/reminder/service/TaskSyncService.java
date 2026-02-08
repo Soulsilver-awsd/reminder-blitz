@@ -18,7 +18,24 @@ public class TaskSyncService {
 
     @Inject
     MoodleClient moodleClient;
+    public void syncAll(){
+        Log.info("Iniciando sincronización de todas las fuentes");
+        List<CalendarSource> allSources = CalendarSource.listAll();
 
+        if(allSources.isEmpty()){
+            Log.warn("No hay fuentes para sincronizar");
+            return;
+        }
+        for(CalendarSource source : allSources){
+            try{
+                syncCalendar(source);
+
+            }catch(Exception e){
+                Log.error("Error en: " + source.name, e);
+            }
+        }
+        Log.info("Sincronización terminada");
+    }
     @Transactional
     public void syncCalendar(CalendarSource calendar){
         List<TaskDTO> downloadedTasks= moodleClient.downloadCalendar(calendar.url);
