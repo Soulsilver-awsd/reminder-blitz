@@ -18,67 +18,88 @@ public class TaskSyncService {
 
     @Inject
     MoodleClient moodleClient;
+
     public void syncAll(){
         Log.info("Iniciando sincronización de todas las fuentes");
-        List<CalendarSource> allSources = CalendarSource.listAll();
+
+        List<CalendarSource> allSources = getAllSources();
 
         if(allSources.isEmpty()){
             Log.warn("No hay fuentes para sincronizar");
             return;
         }
+
         for(CalendarSource source : allSources){
             try{
                 syncCalendar(source);
-
             }catch(Exception e){
-                Log.error("Error en: " + source.name, e);
+                Log.error("Error sincronizando: " + source.name, e);
             }
         }
-        Log.info("Sincronización terminada");
+        Log.info("Sincronización masiva terminada");
     }
+
+
     @Transactional
-    public void syncCalendar(CalendarSource calendar){
-        List<TaskDTO> downloadedTasks= moodleClient.downloadCalendar(calendar.url);
-        int newTasks = 0, taskUpdated = 0;
-        for(TaskDTO dto : downloadedTasks){
-            if (taskInDatabase(dto, calendar)) {
-                taskUpdated++;
-            } else {
+    public List<CalendarSource> getAllSources() {
+        return CalendarSource.listAll();
+    }
+
+    public void syncCalendar(CalendarSource source) {
+        Log.infof(" Descargando: %s", source.name);
+
+        List<TaskDTO> downloadedTasks = moodleClient.downloadCalendar(source.url);
+
+        if (downloadedTasks.isEmpty()) {
+            Log.warnf(" La fuente '%s' no devolvió tareas.", source.name);
+            return;
+        }
+
+        saveTasksToDatabase(downloadedTasks, source);
+    }
+
+    @Transactional
+    public void saveTasksToDatabase(List<TaskDTO> tasks, CalendarSource source) {
+        Log.infof("Procesando %d tareas para: %s", tasks.size(), source.name);
+        java.util.Map<String, Task> taskMap = Task.list("calendarSourceId", source.id)
+                .stream()
+                .map(t -> (Task) t)
+                .collect(java.util.stream.Collectors.toMap(t -> t.uId, t -> t));
+
+        int newTasks = 0;
+        int taskUpdated = 0;
+
+        for (TaskDTO dto : tasks) {
+            Task existingTask = taskMap.get(dto.uId());
+
+            if (existingTask == null) {
+                Task newTask = new Task();
+                newTask.title = dto.title();
+                newTask.description = dto.description();
+                newTask.uId = dto.uId();
+                newTask.deadline = dto.deadline();
+                newTask.isDone = false;
+                newTask.sourceName = source.name;
+                newTask.calendarSourceId = source.id;
+
+                newTask.persist();
+                taskMap.put(newTask.uId, newTask);
+
                 newTasks++;
+            } else {
+                boolean changed = false;
+                if (!existingTask.deadline.isEqual(dto.deadline())) {
+                    existingTask.deadline = dto.deadline();
+                    changed = true;
+                }
+                if (!existingTask.title.equals(dto.title())) {
+                    existingTask.title = dto.title();
+                    changed = true;
+                }
+                if (changed) taskUpdated++;
             }
         }
-        Log.info(" Tareas actualizadas: " + taskUpdated + " Tareas agregadas: " + newTasks);
+        Log.infof("%s -> Nuevas: %d, Actualizadas: %d", source.name, newTasks, taskUpdated);
     }
 
-
-    private boolean taskInDatabase(TaskDTO task, CalendarSource source){
-        Task existingTask = Task.find("uId", task.uId()).firstResult();
-        if(existingTask == null){
-            Task newTask = new Task();
-            newTask.title = task.title();
-            newTask.description = task.description();
-            newTask.uId = task.uId();
-            newTask.deadline = task.deadline();
-            newTask.isDone = false;
-            newTask.sourceName = source.name;
-            newTask.calendarSourceId = source.id;
-            newTask.persist();
-            return false;
-        }else{
-
-            if (!existingTask.deadline.isEqual(task.deadline())) {
-                existingTask.deadline = task.deadline();
-                Log.info(" Fecha actualizada para: " + task.title());
-            }
-
-            if (!existingTask.title.equals(task.title())) {
-                Log.info(existingTask.title +" Renombrado a: " + task.title());
-                existingTask.title = task.title();
-            }
-
-            return true;
-        }
-
-
-    }
 }

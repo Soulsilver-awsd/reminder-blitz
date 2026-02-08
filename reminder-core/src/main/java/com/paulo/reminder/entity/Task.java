@@ -1,13 +1,16 @@
 package com.paulo.reminder.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
 @Entity
-public class Task extends PanacheEntity {
+public class Task extends PanacheEntityBase {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    public Long id;
     public String title;
     public String description;
     @Column(unique = true)
