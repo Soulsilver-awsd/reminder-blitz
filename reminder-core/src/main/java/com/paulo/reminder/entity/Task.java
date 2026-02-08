@@ -8,13 +8,12 @@ import java.time.LocalDateTime;
 
 @Entity
 public class Task extends PanacheEntity {
-    public String summary;
-    @Column(unique = true)
-    public String uId;
-    public LocalDateTime dtStart;
-    public LocalDateTime dtEnd;
+    public String title;
     public String description;
-    public boolean idDone;
+    @Column(unique = true)
+    public String externalUid;
+    public LocalDateTime deadline;
+    public boolean isDone;
     public String sourceName;
     public Long calendarSourceId;
 

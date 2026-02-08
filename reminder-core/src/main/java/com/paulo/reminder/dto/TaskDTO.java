@@ -1,8 +1,12 @@
 package com.paulo.reminder.dto;
 
-public record TaskDTO(String summary,
-                      String deadline,
+import java.time.LocalDateTime;
+
+public record TaskDTO(Long id,
+                      String title,
                       String description,
-                      boolean idDone,
-                      String sourceName){
+                      LocalDateTime deadline,
+                      boolean isDone,
+                      String sourceName,
+                      String uId){
 }
